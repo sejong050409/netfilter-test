@@ -75,49 +75,53 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     int len = nfq_get_payload(nfa, &payload);
 
     if (len >= 0) {
-        ip_header *ip = (ip_header *)payload;
-	int ip_header_len = (ip->ver_ihl & 0x0F) * 4;
-
-	if (ip->protocol != 6)
-            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-       
-        tcp_header *tcp = (tcp_header *)(payload + ip_header_len);
-	if (ntohs(tcp->dst_port) != 80)
-            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-
-        int tcp_header_len = ((tcp->offset_reserved >> 4) & 0x0F) * 4;        
-	
-	unsigned char *http = payload + ip_header_len + tcp_header_len;
-
-        if (http >= payload + len)
-            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-	int http_len = len - ip_header_len - tcp_header_len;
-	printf("[HTTP] %.*s\n", http_len, http);
-
-        char *host = strstr((char *)http, "Host:");
-        if (host) {
-            host += 5;
-	    while (*host == ' ') host++;
-
-            char *end = strstr(host, "\r\n");
-            if (end) {
-                char domain[256] = {0};
-                int host_len = end - host;
-
-                if (host_len < sizeof(domain)) {
-                    strncpy(domain, host, host_len);
-		    domain[host_len] = '\0';
-
-                    printf("[HTTP Host] %s\n", domain); 
-                    if (strcmp(domain, blocked_host) == 0) {
-                        printf(">>> BLOCKED: %s\n", domain);
-                        return nfq_set_verdict(qh, id, NF_DROP, 0, NULL);
-                    }
-                }
-            }
-        }
+	    ip_header *ip = (ip_header *)payload;
+	    int ip_header_len = (ip->ver_ihl & 0x0F) * 4;
+	    
+	    if (ip->protocol != 6)
+		    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+	    
+	    tcp_header *tcp = (tcp_header *)(payload + ip_header_len);
+	    
+	    if (ntohs(tcp->dst_port) != 80)
+		    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+	    
+	    int tcp_header_len = ((tcp->offset_reserved >> 4) & 0x0F) * 4;        
+	    
+	    unsigned char *http = payload + ip_header_len + tcp_header_len;
+	    
+	    if (http >= payload + len)
+		    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+	    
+	    int http_len = len - ip_header_len - tcp_header_len;
+	    
+	    printf("[HTTP] %.*s\n", http_len, http);
+	    
+	    char *host = strstr((char *)http, "Host:");
+	    
+	    if (host) {
+		    host += 5;
+		    
+		    while (*host == ' ') host++;
+		    char *end = strstr(host, "\r\n");
+		    
+		    if (end) {
+			    char domain[256] = {0};
+			    int host_len = end - host;
+			    
+			    if (host_len < sizeof(domain)) {
+				    strncpy(domain, host, host_len);
+				    domain[host_len] = '\0';
+				    
+				    printf("[HTTP Host] %s\n", domain); 
+				    if (strcmp(domain, blocked_host) == 0) {
+					    printf("BLOCKED: %s\n", domain);
+					    return nfq_set_verdict(qh, id, NF_DROP, 0, NULL);
+				    }
+			    }
+		    }
+	    }
     }
-
     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
