@@ -91,7 +91,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
         if (http >= payload + len)
             return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-	printf("[HTTP] %.80s\n", http);
+	int http_len = len - ip_header_len - tcp_header_len;
+	printf("[HTTP] %.*s\n", http_len, http);
 
         char *host = strstr((char *)http, "Host:");
         if (host) {
